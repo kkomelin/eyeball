@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>EyeBar - sprite preview</title>
+<style>
+  body { background: #1b1f2b; color: #eef0f6; font: 13px/1.4 -apple-system, sans-serif; padding: 24px; margin: 0; }
+  h1 { font-size: 16px; margin: 0 0 14px; font-weight: 600; color: #cdd4ea; }
+  h2 { font-size: 12px; margin: 18px 0 8px; font-weight: 500; color: #8a90a0; text-transform: uppercase; letter-spacing: 0.06em; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .cell canvas { background: #0f1118; image-rendering: pixelated; }
+  .cell.tracker canvas { background: #fff; }
+  .cell .lbl { color: #8a90a0; font-size: 10px; font-family: ui-monospace, monospace; }
+  .tracker { padding: 10px; background: #0f1118; border-radius: 8px; }
+  .tracker-pad { width: 320px; height: 240px; background: #2a2f3e; border-radius: 6px; cursor: crosshair; position: relative; }
+  .tracker-pad::after {
+    content: ""; position: absolute; inset: 0; border-radius: 6px;
+    background:
+      linear-gradient(to right, transparent 49.5%, rgba(255,255,255,0.06) 49.5%, rgba(255,255,255,0.06) 50.5%, transparent 50.5%),
+      linear-gradient(to bottom, transparent 49.5%, rgba(255,255,255,0.06) 49.5%, rgba(255,255,255,0.06) 50.5%, transparent 50.5%);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<h1>EyeBar - sprite preview</h1>
+
+<h2>16 px atlas</h2>
+<div class="row" id="atlas16"></div>
+
+<h2>32 px atlas</h2>
+<div class="row" id="atlas32"></div>
+
+<h2>Live (move cursor inside the pad)</h2>
+<div class="row">
+  <div class="tracker">
+    <div class="tracker-pad" id="pad"></div>
+  </div>
+  <div class="cell tracker">
+    <canvas id="liveSmall" width="16" height="16" style="width:64px;height:64px"></canvas>
+    <div class="lbl">16 px (4x zoom)</div>
+  </div>
+  <div class="cell tracker">
+    <canvas id="liveBig" width="32" height="32" style="width:128px;height:128px"></canvas>
+    <div class="lbl">32 px (4x zoom)</div>
+  </div>
+</div>
+
+<script type="module">
+  import {
+    buildAtlas,
+    angleToBucket,
+    cursorToPose,
+    drawEye,
+    BUCKET_CENTER,
+    BUCKET_CLOSED,
+    BUCKET_COUNT,
+  } from "../eye.js";
+
+  // Render atlases by re-drawing each pose to a small visible canvas.
+  function renderAtlas(rootId, size, zoom) {
+    const root = document.getElementById(rootId);
+    const order = [BUCKET_CENTER, ...Array.from({length: BUCKET_COUNT}, (_, i) => i), BUCKET_CLOSED];
+    for (const id of order) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      canvas.style.width = (size * zoom) + "px";
+      canvas.style.height = (size * zoom) + "px";
+      const ctx = canvas.getContext("2d");
+      const state = id === BUCKET_CLOSED
+        ? { kind: "closed" }
+        : id === BUCKET_CENTER
+          ? { kind: "open", angle: 0, mag: 0 }
+          : { kind: "open", angle: id * (2 * Math.PI / BUCKET_COUNT), mag: 1 };
+      drawEye(ctx, size, state);
+      const lbl = document.createElement("div");
+      lbl.className = "lbl";
+      lbl.textContent = String(id);
+      cell.append(canvas, lbl);
+      root.appendChild(cell);
+    }
+  }
+
+  renderAtlas("atlas16", 16, 4);
+  renderAtlas("atlas32", 32, 2);
+
+  // Live tracker
+  const pad = document.getElementById("pad");
+  const small = document.getElementById("liveSmall");
+  const big = document.getElementById("liveBig");
+  const sctx = small.getContext("2d");
+  const bctx = big.getContext("2d");
+
+  function renderLive(angle, mag) {
+    const bucket = angleToBucket(angle, mag);
+    const state = bucket === BUCKET_CENTER
+      ? { kind: "open", angle: 0, mag: 0 }
+      : { kind: "open", angle: bucket * (2 * Math.PI / BUCKET_COUNT), mag: 1 };
+    sctx.clearRect(0, 0, 16, 16);
+    bctx.clearRect(0, 0, 32, 32);
+    drawEye(sctx, 16, state);
+    drawEye(bctx, 32, state);
+  }
+  renderLive(0, 0);
+
+  pad.addEventListener("mousemove", (e) => {
+    const r = pad.getBoundingClientRect();
+    const { angle, mag } = cursorToPose(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
+    renderLive(angle, mag);
+  });
+  pad.addEventListener("mouseleave", () => renderLive(0, 0));
+</script>
+</body>
+</html>

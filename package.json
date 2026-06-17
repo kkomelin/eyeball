@@ -1,0 +1,13 @@
+{
+  "name": "eyebar",
+  "version": "0.1.0",
+  "description": "Chrome extension that puts a single eye in the toolbar and tracks your cursor on the page. No network, no tracking.",
+  "license": "Apache-2.0",
+  "repository": "github:kkomelin/eyebar",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "icons": "node scripts/make-icons.mjs",
+    "package": "bash scripts/package.sh"
+  }
+}
