@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Eyeball - an eye in your toolbar",
+  "name": "Eyeball - a curious eye in your toolbar",
   "version": "0.1.0",
   "description": "An eye in the Chrome toolbar that follows your cursor. Centers on pages it can't read. No network, no tracking.",
   "minimum_chrome_version": "111",

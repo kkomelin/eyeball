@@ -1,4 +1,6 @@
-# Eyeball - an eye in your toolbar that follows the cursor
+# Eyeball - a curious eye in your toolbar
+
+![Eyeball watching from the Chrome toolbar](store-assets/screenshot-640x400.png)
 
 A tiny Chrome extension (Manifest V3) that puts a **single eye** in your
 toolbar. The pupil tracks your cursor on the active page. On pages it can't
