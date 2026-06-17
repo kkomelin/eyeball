@@ -1,4 +1,4 @@
-// EyeBar - content script.
+// Eyeball - content script.
 // Throttles mousemove to ~10 Hz and posts viewport-relative (angle, mag) to
 // the service worker over a long-lived Port. Also relays window blur/focus
 // and tab visibility so the SW can drive its idle/sleep/look-up states.
@@ -29,7 +29,7 @@
   function ensurePort() {
     if (port) return port;
     try {
-      port = chrome.runtime.connect({ name: "eyebar" });
+      port = chrome.runtime.connect({ name: "eyeball" });
       port.onDisconnect.addListener(() => {
         port = null;
       });

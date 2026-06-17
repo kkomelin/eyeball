@@ -1,9 +1,9 @@
 {
-  "name": "eyebar",
+  "name": "eyeball",
   "version": "0.1.0",
   "description": "Chrome extension that puts a single eye in the toolbar and tracks your cursor on the page. No network, no tracking.",
   "license": "Apache-2.0",
-  "repository": "github:kkomelin/eyebar",
+  "repository": "github:kkomelin/eyeball",
   "type": "module",
   "scripts": {
     "test": "node --test",

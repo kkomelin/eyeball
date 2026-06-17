@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prepares a Chrome Web Store upload: validates the extension, runs the tests,
-# and packs only the runtime files into dist/eyebar-v<version>.zip.
+# and packs only the runtime files into dist/eyeball-v<version>.zip.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -38,7 +38,7 @@ if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
   echo "Warning: working tree has uncommitted changes; the zip is built from the working tree, not from git." >&2
 fi
 
-OUT="dist/eyebar-v${VERSION}.zip"
+OUT="dist/eyeball-v${VERSION}.zip"
 mkdir -p dist
 rm -f "$OUT"
 # -X strips OS-specific extra fields for a reproducible, minimal archive

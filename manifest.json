@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "EyeBar - an eye in your toolbar",
+  "name": "Eyeball - an eye in your toolbar",
   "version": "0.1.0",
   "description": "An eye in the Chrome toolbar that follows your cursor. Looks around on its own on pages it can't read. No network, no tracking.",
   "minimum_chrome_version": "111",
@@ -9,7 +9,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "EyeBar",
+    "default_title": "Eyeball",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

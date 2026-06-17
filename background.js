@@ -1,4 +1,4 @@
-// EyeBar - background service worker (Manifest V3).
+// Eyeball - background service worker (Manifest V3).
 // Pre-renders an eye-pose sprite atlas at startup, then dispatches setIcon
 // only when the active pose changes. No per-frame canvas work, no network,
 // no storage. The sprite atlas lives in module memory; if the service worker
@@ -109,7 +109,7 @@ function scheduleSpontaneousBlink() {
 // ---------- Active tab tracking ----------
 // Unsupported pages (PDFs, chrome://, Web Store) can't run a content script,
 // so we detect "active tab is unsupported" as "the currently active tab has
-// no connected eyebar port". When that happens the eye centers - the same
+// no connected eyeball port". When that happens the eye centers - the same
 // behavior as before this change.
 let activeTabId = null;
 const portsByTab = new Map(); // tabId -> Port
@@ -131,7 +131,7 @@ function scheduleCenterCheck(delayMs = 200) {
 // Long-lived Port keeps the SW alive while the user moves the cursor, and
 // avoids per-message connection setup.
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== "eyebar") return;
+  if (port.name !== "eyeball") return;
   const tabId = port.sender?.tab?.id ?? null;
   if (tabId != null) portsByTab.set(tabId, port);
 
@@ -223,7 +223,7 @@ chrome.tabs.query({ active: true, lastFocusedWindow: true }).then((tabs) => {
 // (not gated on onInstalled/onStartup) - this guarantees that an SW which died
 // with the icon in BUCKET_CLOSED comes back open on its next wake instead of
 // staying stuck closed.
-const BLINK_ALARM = "eyebar-blink";
+const BLINK_ALARM = "eyeball-blink";
 
 setBucket(BUCKET_CENTER, { force: true });
 

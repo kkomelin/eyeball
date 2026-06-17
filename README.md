@@ -1,4 +1,4 @@
-# EyeBar - an eye in your toolbar that follows the cursor
+# Eyeball - an eye in your toolbar that follows the cursor
 
 A tiny Chrome extension (Manifest V3) that puts a **single eye** in your
 toolbar. The pupil tracks your cursor on the active page. On pages it can't
@@ -67,7 +67,7 @@ encoder built on Node's `zlib`.
 | `alarms`           | Periodic soft blink.                                                                               |
 | `<all_urls>` (host)| Lets the content script read cursor position on the active page so the eye can follow it.         |
 
-EyeBar reads only `mousemove` coordinates from the active page. It does not
+Eyeball reads only `mousemove` coordinates from the active page. It does not
 read page content, form data, URLs, history, cookies, or anything else. See
 [PRIVACY.md](PRIVACY.md).
 
@@ -76,7 +76,7 @@ read page content, form data, URLs, history, cookies, or anything else. See
 ```sh
 npm test     # runs the eye.js unit tests (node --test)
 npm run icons  # regenerates icons/*.png
-npm run package  # builds dist/eyebar-v<version>.zip for the Chrome Web Store
+npm run package  # builds dist/eyeball-v<version>.zip for the Chrome Web Store
 ```
 
 ## License

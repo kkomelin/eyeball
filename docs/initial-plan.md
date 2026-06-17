@@ -1,4 +1,4 @@
-# EyeBar - plan
+# Eyeball - plan
 
 An eye in the Chrome toolbar that follows the cursor on the page. MV3, no
 network, no tracking.
@@ -76,7 +76,7 @@ makes the gaze flatter and calmer.
 ## Architecture
 
 ```
-eyebar/
+eyeball/
 ├── manifest.json
 ├── background.js      # service worker: sprite atlas + setIcon dispatcher
 ├── content.js         # throttled mousemove, posts over Port
@@ -132,12 +132,12 @@ animate". We comply by:
 ```json
 {
   "manifest_version": 3,
-  "name": "EyeBar - an eye that follows your cursor",
+  "name": "Eyeball - an eye that follows your cursor",
   "version": "0.1.0",
   "minimum_chrome_version": "111",
   "background": { "service_worker": "background.js", "type": "module" },
   "action": {
-    "default_title": "EyeBar",
+    "default_title": "Eyeball",
     "default_popup": "popup.html",
     "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
   },

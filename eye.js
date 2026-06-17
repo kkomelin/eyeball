@@ -1,4 +1,4 @@
-// EyeBar - shared pure helpers used by the service worker and dev preview.
+// Eyeball - shared pure helpers used by the service worker and dev preview.
 // Pure functions only: no `chrome`, no DOM at the module level. The toolbar
 // disc is rendered to OffscreenCanvas -> ImageData and handed to
 // `chrome.action.setIcon` - no popup, no SVG path, pure toolbar experiment.
