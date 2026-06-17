@@ -1,7 +1,7 @@
 // Eyeball - content script.
 // Throttles mousemove to ~10 Hz and posts viewport-relative (angle, mag) to
 // the service worker over a long-lived Port. Also relays window blur/focus
-// and tab visibility so the SW can drive its idle/sleep/look-up states.
+// and tab visibility so the SW can drive its open/sleeping states.
 //
 // Not a module: content scripts can't be ES modules under MV3. We inline a
 // tiny pose helper here rather than try to share eye.js via importScripts.

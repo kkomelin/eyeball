@@ -2,18 +2,19 @@
 
 A tiny Chrome extension (Manifest V3) that puts a **single eye** in your
 toolbar. The pupil tracks your cursor on the active page. On pages it can't
-read (PDFs, the Chrome Web Store, `chrome://` pages), the eye looks around on
-its own. No network, no tracking.
+read (PDFs, the Chrome Web Store, `chrome://` pages), the eye centers. No
+network, no tracking.
 
 ## Features
 
 - **Single-eye toolbar icon** that follows the cursor on the active page.
-- **Idle "looking around"** animation when no cursor signal is available (PDF
-  viewer, internal Chrome pages, the Web Store, or a 5-second pause on
-  supported pages).
+- **Holds the last pose** when the cursor stops on a supported tab, and
+  **centers** when the active tab is unsupported (PDF viewer, internal Chrome
+  pages, the Web Store).
 - **Sleeping eye** when the browser window loses focus.
-- **Periodic soft blink** so the icon feels alive. Clicking the icon also
-  blinks it.
+- **Spontaneous blinks** every 7-13 seconds while the eye is actively
+  tracking, plus a soft heartbeat blink about once a minute. Clicking the
+  icon also blinks it.
 - **No popup, no UI surface beyond the toolbar icon.** This is a pure
   toolbar experiment.
 - **No network, no analytics, no accounts, no tracking.** Cursor coordinates
@@ -52,13 +53,11 @@ encoder built on Node's `zlib`.
 
 ## States
 
-| State              | Trigger                                                              | Behavior                              |
-| ------------------ | -------------------------------------------------------------------- | ------------------------------------- |
-| `tracking`         | Content script is streaming cursor coords from the active tab        | Pupil follows the cursor              |
-| `idle-look-around` | Active tab is unsupported, or no mouse movement for 5+ seconds       | Pupil drifts every 1.5-3 seconds      |
-| `sleeping`         | Browser window unfocused                                             | Eye closed                            |
-| `look-up`          | Page lost focus while the tab is still active (likely omnibox focus) | Pupil looks toward the top of the icon |
-| `blink`            | Once a minute, and on toolbar-icon click                             | One-frame closed, then resume         |
+| State      | Trigger                                                                                          | Behavior                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `open`     | Default - the active tab has a connected content script                                          | Pupil follows the cursor; freezes at the last pose when the cursor stops; centers when the active tab is unsupported (PDF, `chrome://`, Web Store) |
+| `sleeping` | Browser window unfocused                                                                         | Eye closed                                                                                                          |
+| `blinking` | Spontaneous (every 7-13 s while tracking), a soft heartbeat about once a minute, and toolbar-icon click | Brief eye-closed frame, then back to the last pose                                                                  |
 
 ## Permissions
 

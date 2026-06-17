@@ -23,7 +23,7 @@ The toolbar icon is 16 px at standard density (32 px on HiDPI). The math:
 At two eyes, the pupil travel collapses to roughly one pixel - that doesn't
 read as tracking, it reads as two static dots. One eye keeps enough pupil
 travel that movement is unambiguous. It also makes a stronger logo, matches
-the singular name, and keeps the blink/sleeping/look-around frames legible.
+the singular name, and keeps the centered and blink/sleeping frames legible.
 
 ## States
 
@@ -111,9 +111,12 @@ is a pure toolbar experiment - the only UI surface is the icon itself.
    nearest sprite bucket, and only calls `chrome.action.setIcon({imageData})`
    when the bucket actually changes. Expected real-world rate: a few calls
    per second, not dozens.
-4. **Idle/look-around** is driven by a `setTimeout` in the SW that fires only
-   when no gaze arrives for ~5s. It picks a random bucket every 1.5-3s.
+4. **Centering** happens when the active tab has no connected content-script
+   port (PDF, `chrome://`, Web Store, or a freshly-closed tab). The SW gives
+   new tabs a short grace period to connect, then sets the centered sprite.
 5. **Blink** is a single-frame `setIcon` swap to the closed sprite, then back.
+   Spontaneous blinks run every 7-13s while a gaze has arrived recently; a
+   1-minute alarm provides a low-cost heartbeat when nothing is happening.
 
 ## Why this respects Chrome's API guidance
 
@@ -173,7 +176,7 @@ No network, no `storage`, no `tabs` URL access, no `cookies`.
 - **Tracking the cursor across the browser chrome** (tabs strip, bookmarks
   bar) - no API. We can't.
 - **Working on `chrome://`, Web Store, and PDF tabs** - content scripts are
-  blocked. We fall back to `idle-look-around`.
+  blocked. We fall back to centering the eye.
 - **Persistence of "last gaze"** - state is in-memory in the SW; on SW
   restart we reset to centered. No `chrome.storage` needed.
 
@@ -189,14 +192,15 @@ No network, no `storage`, no `tabs` URL access, no `cookies`.
    subjective smoothness on a typical browsing session. Confirm update rate
    stays in the single-digit-per-second range.
 
-3. **Idle states**
-   Idle-look-around timer, sleeping on window blur, periodic blink.
+3. **Sleep and blink**
+   Sleeping on window blur, spontaneous blink loop while tracking, 1-minute
+   heartbeat blink alarm, click-to-blink.
 
 4. **Unsupported-page handling**
-   Verify the SW correctly enters `idle-look-around` when the active tab
-   switches to a `chrome://` URL, a PDF, or the Web Store. Use
-   `chrome.tabs.onActivated` + `chrome.tabs.onUpdated` to detect the active
-   tab's URL scheme (or absence of a content script handshake within ~500ms).
+   Verify the SW correctly centers the eye when the active tab switches to a
+   `chrome://` URL, a PDF, or the Web Store. Use `chrome.tabs.onActivated`
+   plus port disconnects to detect the active tab having no connected
+   content-script port, with a brief grace period for a freshly-opened tab.
 
 5. **Polish / store**
    Icons, `PRIVACY.md`, `README.md`, store assets, screenshots, the works.
@@ -206,10 +210,11 @@ No network, no `storage`, no `tabs` URL access, no `cookies`.
 
 - **N (pupil-bucket count)**: 8 is too coarse at 32 px, 32 is wasteful. Start
   at 16, revisit after the geometry spike.
-- **Idle threshold**: 5s feels right for "user paused", but worth tuning.
-- **Look-up heuristic for omnibox**: include or skip? It's a small gain and
-  some false positives (alt-tab, devtools focus). Lean toward including in v1
-  and removing if it feels noisy.
+- ~~Idle look-around~~ - **decided: no idle wander**. The eye either tracks
+  the cursor, holds its last open pose, or (on unsupported tabs) centers.
+- ~~Look-up heuristic for omnibox~~ - **decided: skip**. No reliable signal
+  without a registered omnibox keyword, and the false-positive rate
+  (alt-tab, devtools focus) isn't worth the small gain.
 - **Eye style**: cartoony round eye, or stylized iris with detail? At 16 px
   the answer is forced (round + pupil); 32 px allows a hint of iris.
 - ~~Single eye vs. two eyes~~ - **decided: single eye** (see Concept).

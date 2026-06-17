@@ -28,7 +28,7 @@ cookies, or any other information from the pages you visit.
 
 On pages where extensions cannot run a content script (PDFs, the Chrome Web
 Store, internal `chrome://` pages), Eyeball receives no cursor data at all -
-the eye simply looks around on its own.
+the eye simply centers.
 
 ## Contact
 
