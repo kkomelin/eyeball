@@ -92,18 +92,18 @@ test("BUCKET_CLOSED is distinct from BUCKET_CENTER and from numeric buckets", ()
   }
 });
 
-test("isNightTime handles a window that wraps past midnight (17 -> 6)", () => {
+test("isNightTime handles a window that wraps past midnight", () => {
   // Evening and early morning are night; daytime is not.
-  assert.equal(isNightTime(17, 17, 6), true);  // start hour is inclusive
-  assert.equal(isNightTime(20, 17, 6), true);
-  assert.equal(isNightTime(0, 17, 6), true);
-  assert.equal(isNightTime(5, 17, 6), true);
-  assert.equal(isNightTime(6, 17, 6), false); // end hour is exclusive
-  assert.equal(isNightTime(7, 17, 6), false);
-  assert.equal(isNightTime(16, 17, 6), false);
+  assert.equal(isNightTime(21, 21, 6), true);  // start hour is inclusive
+  assert.equal(isNightTime(23, 21, 6), true);
+  assert.equal(isNightTime(0, 21, 6), true);
+  assert.equal(isNightTime(5, 21, 6), true);
+  assert.equal(isNightTime(6, 21, 6), false); // end hour is exclusive
+  assert.equal(isNightTime(7, 21, 6), false);
+  assert.equal(isNightTime(20, 21, 6), false);
 });
 
-test("isNightTime handles a same-day window (9 -> 17)", () => {
+test("isNightTime handles a same-day window", () => {
   assert.equal(isNightTime(9, 9, 17), true);
   assert.equal(isNightTime(12, 9, 17), true);
   assert.equal(isNightTime(17, 9, 17), false); // exclusive end
