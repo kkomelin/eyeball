@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Eyeball - a curious eye in your toolbar",
   "version": "0.2.0",
-  "description": "An eye in the Chrome toolbar that follows your cursor. Centers on pages it can't read. No network, no tracking.",
+  "description": "An eye in the Chrome toolbar that follows your cursor. Centers on pages it can't read. Sometimes blinks. No network, no tracking.",
   "minimum_chrome_version": "111",
   "background": {
     "service_worker": "background.js",
