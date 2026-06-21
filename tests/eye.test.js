@@ -10,6 +10,7 @@ import {
   cursorToPose,
   irisCenter,
   GEOM,
+  isNightTime,
 } from "../eye.js";
 
 test("angleToBucket snaps to centered for tiny magnitudes", () => {
@@ -88,5 +89,30 @@ test("BUCKET_CLOSED is distinct from BUCKET_CENTER and from numeric buckets", ()
   for (let i = 0; i < BUCKET_COUNT; i++) {
     assert.notEqual(BUCKET_CLOSED, i);
     assert.notEqual(BUCKET_CENTER, i);
+  }
+});
+
+test("isNightTime handles a window that wraps past midnight (17 -> 6)", () => {
+  // Evening and early morning are night; daytime is not.
+  assert.equal(isNightTime(17, 17, 6), true);  // start hour is inclusive
+  assert.equal(isNightTime(20, 17, 6), true);
+  assert.equal(isNightTime(0, 17, 6), true);
+  assert.equal(isNightTime(5, 17, 6), true);
+  assert.equal(isNightTime(6, 17, 6), false); // end hour is exclusive
+  assert.equal(isNightTime(7, 17, 6), false);
+  assert.equal(isNightTime(16, 17, 6), false);
+});
+
+test("isNightTime handles a same-day window (9 -> 17)", () => {
+  assert.equal(isNightTime(9, 9, 17), true);
+  assert.equal(isNightTime(12, 9, 17), true);
+  assert.equal(isNightTime(17, 9, 17), false); // exclusive end
+  assert.equal(isNightTime(8, 9, 17), false);
+  assert.equal(isNightTime(20, 9, 17), false);
+});
+
+test("isNightTime with a zero-length window (start === end) is never night", () => {
+  for (let h = 0; h < 24; h++) {
+    assert.equal(isNightTime(h, 12, 12), false, `hour ${h}`);
   }
 });

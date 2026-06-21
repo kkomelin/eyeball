@@ -17,6 +17,9 @@ network, no tracking.
 - **Spontaneous blinks** every 7-13 seconds while the eye is actively
   tracking, plus a soft heartbeat blink about once a minute. Clicking the
   icon also blinks it.
+- **Night mode** during the evening hours (21:00-06:00, on your local clock)
+  the eye gets tired - the white turns faintly pink and it blinks more often -
+  then it's rested again by morning.
 - **No popup, no UI surface beyond the toolbar icon.** This is a pure
   toolbar experiment.
 - **No network, no analytics, no accounts, no tracking.** Cursor coordinates
@@ -52,6 +55,16 @@ when the bucket actually changes, and never more often than ~25 Hz.
 The brand icon (`icons/icon{16,32,48,128}.png`) is generated analytically by
 `scripts/make-icons.mjs` with no external dependencies - a small PNG
 encoder built on Node's `zlib`.
+
+## Night mode
+
+In the evening (21:00-06:00, your local clock) the eye gets tired: the white
+turns faintly pink, as if you have been working late, and it blinks a little
+more often. The iris and pupil are unchanged. It's rested and back to normal by
+morning.
+
+The switch is driven entirely by your device's clock. Nothing is sent anywhere,
+and no schedule or preference is stored.
 
 ## States
 

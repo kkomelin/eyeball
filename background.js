@@ -1,23 +1,40 @@
 // Eyeball - background service worker (Manifest V3).
 // Pre-renders an eye-pose sprite atlas at startup, then dispatches setIcon
 // only when the active pose changes. No per-frame canvas work, no network,
-// no storage. The sprite atlas lives in module memory; if the service worker
-// is terminated the atlas is rebuilt on the next event (cheap - ~36 small
-// canvas draws total).
+// no storage. The sprite atlases live in module memory; if the service worker
+// is terminated they are rebuilt on the next event (cheap - ~36 small canvas
+// draws per theme).
 
 import {
   buildAtlas,
   angleToBucket,
   BUCKET_CENTER,
   BUCKET_CLOSED,
+  DAY,
+  NIGHT,
+  isNightTime,
+  NIGHT_START_HOUR,
+  NIGHT_END_HOUR,
 } from "./eye.js";
 
 const ICON_SIZES = [16, 32];
 
-// Bucket id ("c", "x", 0..15) -> { 16: ImageData, 32: ImageData }.
-// Built eagerly at module init so the first gaze after a service-worker
-// cold-start doesn't have to wait for ~36 small canvas draws.
-const atlas = buildAtlas((w, h) => new OffscreenCanvas(w, h), ICON_SIZES);
+// theme name -> (bucket id ("c", "x", 0..15) -> { 16: ImageData, 32: ImageData }).
+// Both palettes are pre-rendered eagerly at module init so switching between the
+// day and night look at sundown is a zero-cost atlas swap, and the first gaze
+// after a service-worker cold-start doesn't wait for canvas draws.
+const mk = (w, h) => new OffscreenCanvas(w, h);
+const atlases = {
+  day: buildAtlas(mk, ICON_SIZES, DAY),
+  night: buildAtlas(mk, ICON_SIZES, NIGHT),
+};
+
+// ---------- Theme (day / night) ----------
+// The eye has two palettes. `theme` picks which atlas setBucket draws from.
+// It's driven purely by the local clock against a configurable schedule - see
+// the night-mode section below. Starts on a synchronously-computed value so the
+// very first icon paint already matches the time of day (no day->night flash).
+let theme = "day";
 
 // ---------- Pose dispatch ----------
 let currentBucket = null;
@@ -28,13 +45,38 @@ function setBucket(bucket, { force = false } = {}) {
   if (!force && bucket === currentBucket) return;
   const now = Date.now();
   if (!force && now - lastSetIconAt < SET_ICON_MIN_GAP_MS) return;
-  const imageData = atlas[bucket];
+  const imageData = atlases[theme][bucket];
   if (!imageData) return;
   currentBucket = bucket;
   lastSetIconAt = now;
   chrome.action.setIcon({ imageData }).catch(() => {
     // Ignore: tabs can close between dispatch and apply.
   });
+}
+
+// Switch palettes and immediately repaint the current pose in the new colors.
+function setTheme(next) {
+  if (next === theme || !atlases[next]) return;
+  theme = next;
+  // Re-render whatever the eye is currently showing, bypassing the "same
+  // bucket" short-circuit and the rate cap so the swap is instant.
+  if (currentBucket != null) setBucket(currentBucket, { force: true });
+}
+
+// ---------- Night-mode schedule ----------
+// The eye's white goes bloodshot/tired during the hardcoded night window
+// (NIGHT_START_HOUR -> NIGHT_END_HOUR in eye.js, currently 21:00-06:00).
+// Evaluation is just a local clock read, driven by the 1-minute blink alarm plus
+// startup/focus events - cheap, minute-resolution, no extra timers.
+
+// The theme the clock says we should be in right now.
+function scheduledTheme() {
+  const hour = new Date().getHours();
+  return isNightTime(hour, NIGHT_START_HOUR, NIGHT_END_HOUR) ? "night" : "day";
+}
+
+function evaluateTheme() {
+  setTheme(scheduledTheme());
 }
 
 // ---------- Mode ----------
@@ -84,14 +126,21 @@ function blinkOnce() {
 // CPU to speak of (one setIcon swap every ~10s) and no added wake time. A short
 // while after the cursor goes quiet the loop stops rescheduling and lets the SW
 // idle out; the 1-minute alarm below is the low-cost idle heartbeat.
+//
+// At night the eye is tired, and a fatigued human blinks noticeably more often,
+// so night mode uses a quicker cadence (~4.5-8.5s).
 const BLINK_MIN_MS = 7000;
 const BLINK_MAX_MS = 13000;
+const NIGHT_BLINK_MIN_MS = 4500;
+const NIGHT_BLINK_MAX_MS = 8500;
 const BLINK_ACTIVE_WINDOW_MS = 15000; // keep blinking this long after the last gaze, then wind down
 let blinkTimer = null;
 let lastGazeAt = 0;
 
 function nextBlinkDelay() {
-  return BLINK_MIN_MS + Math.random() * (BLINK_MAX_MS - BLINK_MIN_MS);
+  const min = theme === "night" ? NIGHT_BLINK_MIN_MS : BLINK_MIN_MS;
+  const max = theme === "night" ? NIGHT_BLINK_MAX_MS : BLINK_MAX_MS;
+  return min + Math.random() * (max - min);
 }
 
 function scheduleSpontaneousBlink() {
@@ -192,6 +241,7 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
     return;
   }
   exitSleeping();
+  evaluateTheme(); // a refocus may straddle the day/night boundary
   try {
     const tabs = await chrome.tabs.query({ active: true, windowId });
     if (tabs[0]) {
@@ -225,11 +275,18 @@ chrome.tabs.query({ active: true, lastFocusedWindow: true }).then((tabs) => {
 // staying stuck closed.
 const BLINK_ALARM = "eyeball-blink";
 
+// Paint the first frame in the palette the clock implies, so a fresh wake never
+// flashes the wrong theme.
+theme = scheduledTheme();
 setBucket(BUCKET_CENTER, { force: true });
 
 chrome.alarms.create(BLINK_ALARM, { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === BLINK_ALARM) blinkOnce();
+  if (alarm.name !== BLINK_ALARM) return;
+  // The 1-minute heartbeat is also our day/night crossing check: re-evaluate
+  // the schedule, then do the idle blink.
+  evaluateTheme();
+  blinkOnce();
 });
 
 // ---------- Click ----------

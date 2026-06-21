@@ -26,11 +26,17 @@
 <body>
 <h1>Eyeball - sprite preview</h1>
 
-<h2>16 px atlas</h2>
+<h2>Day - 16 px atlas</h2>
 <div class="row" id="atlas16"></div>
 
-<h2>32 px atlas</h2>
+<h2>Day - 32 px atlas</h2>
 <div class="row" id="atlas32"></div>
+
+<h2>Night - 16 px atlas</h2>
+<div class="row" id="night16"></div>
+
+<h2>Night - 32 px atlas</h2>
+<div class="row" id="night32"></div>
 
 <h2>Live (move cursor inside the pad)</h2>
 <div class="row">
@@ -56,10 +62,12 @@
     BUCKET_CENTER,
     BUCKET_CLOSED,
     BUCKET_COUNT,
+    DAY,
+    NIGHT,
   } from "../eye.js";
 
   // Render atlases by re-drawing each pose to a small visible canvas.
-  function renderAtlas(rootId, size, zoom) {
+  function renderAtlas(rootId, size, zoom, theme = DAY) {
     const root = document.getElementById(rootId);
     const order = [BUCKET_CENTER, ...Array.from({length: BUCKET_COUNT}, (_, i) => i), BUCKET_CLOSED];
     for (const id of order) {
@@ -76,7 +84,7 @@
         : id === BUCKET_CENTER
           ? { kind: "open", angle: 0, mag: 0 }
           : { kind: "open", angle: id * (2 * Math.PI / BUCKET_COUNT), mag: 1 };
-      drawEye(ctx, size, state);
+      drawEye(ctx, size, state, theme);
       const lbl = document.createElement("div");
       lbl.className = "lbl";
       lbl.textContent = String(id);
@@ -85,8 +93,10 @@
     }
   }
 
-  renderAtlas("atlas16", 16, 4);
-  renderAtlas("atlas32", 32, 2);
+  renderAtlas("atlas16", 16, 4, DAY);
+  renderAtlas("atlas32", 32, 2, DAY);
+  renderAtlas("night16", 16, 4, NIGHT);
+  renderAtlas("night32", 32, 2, NIGHT);
 
   // Live tracker
   const pad = document.getElementById("pad");

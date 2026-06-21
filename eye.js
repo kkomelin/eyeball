@@ -4,16 +4,36 @@
 // `chrome.action.setIcon` - no popup, no SVG path, pure toolbar experiment.
 
 // ---------- Palette ----------
-// A warm near-white sclera with a calm slate-blue iris, tuned to read on both
-// light and dark toolbars.
-export const SCLERA = "#f6f4ea";          // eye white - warm near-white
-export const SCLERA_SHADE = "#e7e1c9";    // sclera shading toward the lower-right
-export const IRIS = "#3e5a6e";            // calm slate-blue iris, reads on both light and dark toolbars
-export const IRIS_HILITE = "#5a7a92";     // iris top highlight
-export const PUPIL = "#1a1f2a";           // near-black pupil
-export const HILITE = "#ffffff";          // small specular highlight on the iris
-export const LID = "#3a4054";             // closed-eye line / shading
-export const RING = "rgba(150,160,180,0.5)"; // outline so the disc reads on any toolbar tint
+// The eye is themeable: every drawing routine reads its colors off a palette
+// object rather than module-level constants, so the same geometry renders in
+// either the calm daytime look or the tired, bloodshot-white night look. `DAY`
+// is the default everywhere, which keeps the dev preview and any old callers working.
+//
+// DAY: a warm near-white sclera with a calm slate-blue iris, tuned to read on
+// both light and dark toolbars.
+export const DAY = {
+  SCLERA: "#f6f4ea",            // eye white - warm near-white
+  SCLERA_SHADE: "#e7e1c9",      // sclera shading toward the lower-right
+  CLOSED_FILL: "#e7e1c9",       // closed-eye disc fill - kept independent of the open-eye sclera
+  IRIS: "#3e5a6e",              // calm slate-blue iris, reads on both light and dark toolbars
+  IRIS_HILITE: "#5a7a92",       // iris top highlight
+  PUPIL: "#1a1f2a",             // near-black pupil
+  HILITE: "#ffffff",            // small specular highlight on the iris
+  LID: "#3a4054",               // closed-eye line / shading
+  RING: "rgba(150,160,180,0.5)", // outline so the disc reads on any toolbar tint
+};
+
+// NIGHT: a tired, bloodshot eye - the look of working late. Real eyes don't
+// change iris color at night; the *white* reddens as the surface vessels dilate.
+// So night mode is just DAY with a pink-red sclera that pools to a deeper,
+// veiny red toward the lower-right. Everything else - iris, pupil, lid, and the
+// closed-eye disc (CLOSED_FILL, inherited from DAY) - is unchanged, so the
+// sleeping/blinking eye looks identical day or night.
+export const NIGHT = {
+  ...DAY,
+  SCLERA: "#f6e1dc",            // tired white - faint pink-red instead of cream
+  SCLERA_SHADE: "#dca9a0",      // bloodshot pooling toward the lower-right
+};
 
 // ---------- Direction quantization ----------
 // 16 directional pupil positions + a centered pose + a closed pose. At icon
@@ -73,21 +93,22 @@ export function irisCenter(state, cx, cy, discR) {
 // ---------- Canvas drawer ----------
 // ctx is any Canvas-2D-compatible context (HTMLCanvas, OffscreenCanvas).
 // Draws into the [0, size] x [0, size] region. Caller is responsible for
-// clearing the canvas first if needed.
-export function drawEye(ctx, size, state) {
+// clearing the canvas first if needed. `theme` is a palette object (DAY/NIGHT);
+// it defaults to DAY so existing callers keep their original look.
+export function drawEye(ctx, size, state, theme = DAY) {
   const cx = size / 2;
   const cy = size / 2;
   const R = size * GEOM.discR;
 
   if (state.kind === "closed") {
-    drawClosedEye(ctx, cx, cy, R, size);
+    drawClosedEye(ctx, cx, cy, R, size, theme);
     return;
   }
 
   // Sclera disc (with soft vertical shading: lighter top, slightly cooler bottom).
   const grad = ctx.createLinearGradient(cx, cy - R, cx, cy + R);
-  grad.addColorStop(0, SCLERA);
-  grad.addColorStop(1, SCLERA_SHADE);
+  grad.addColorStop(0, theme.SCLERA);
+  grad.addColorStop(1, theme.SCLERA_SHADE);
   ctx.beginPath();
   ctx.arc(cx, cy, R, 0, 2 * Math.PI);
   ctx.fillStyle = grad;
@@ -104,8 +125,8 @@ export function drawEye(ctx, size, state) {
     iy,
     irisR,
   );
-  iGrad.addColorStop(0, IRIS_HILITE);
-  iGrad.addColorStop(1, IRIS);
+  iGrad.addColorStop(0, theme.IRIS_HILITE);
+  iGrad.addColorStop(1, theme.IRIS);
   ctx.beginPath();
   ctx.arc(ix, iy, irisR, 0, 2 * Math.PI);
   ctx.fillStyle = iGrad;
@@ -115,7 +136,7 @@ export function drawEye(ctx, size, state) {
   const pupilR = irisR * GEOM.pupilR;
   ctx.beginPath();
   ctx.arc(ix, iy, pupilR, 0, 2 * Math.PI);
-  ctx.fillStyle = PUPIL;
+  ctx.fillStyle = theme.PUPIL;
   ctx.fill();
 
   // Specular highlight.
@@ -129,7 +150,7 @@ export function drawEye(ctx, size, state) {
       0,
       2 * Math.PI,
     );
-    ctx.fillStyle = HILITE;
+    ctx.fillStyle = theme.HILITE;
     ctx.fill();
   }
 
@@ -137,23 +158,23 @@ export function drawEye(ctx, size, state) {
   ctx.beginPath();
   ctx.arc(cx, cy, R, 0, 2 * Math.PI);
   ctx.lineWidth = Math.max(1, size * GEOM.ringW);
-  ctx.strokeStyle = RING;
+  ctx.strokeStyle = theme.RING;
   ctx.stroke();
 }
 
-function drawClosedEye(ctx, cx, cy, R, size) {
+function drawClosedEye(ctx, cx, cy, R, size, theme = DAY) {
   // A faint sclera ghost so the closed eye still has a disc silhouette, then a
   // thick horizontal lid line across the middle. Reads as a sleeping eye at
   // icon size.
   ctx.beginPath();
   ctx.arc(cx, cy, R, 0, 2 * Math.PI);
-  ctx.fillStyle = SCLERA_SHADE;
+  ctx.fillStyle = theme.CLOSED_FILL;
   ctx.fill();
 
   ctx.beginPath();
   ctx.lineCap = "round";
   ctx.lineWidth = Math.max(1.5, R * GEOM.lidThick);
-  ctx.strokeStyle = LID;
+  ctx.strokeStyle = theme.LID;
   const armR = R * 0.78;
   // Slight downward curve so the lid reads as a sleepy crescent.
   ctx.moveTo(cx - armR, cy);
@@ -163,7 +184,7 @@ function drawClosedEye(ctx, cx, cy, R, size) {
   ctx.beginPath();
   ctx.arc(cx, cy, R, 0, 2 * Math.PI);
   ctx.lineWidth = Math.max(1, size * GEOM.ringW);
-  ctx.strokeStyle = RING;
+  ctx.strokeStyle = theme.RING;
   ctx.stroke();
 }
 
@@ -173,8 +194,9 @@ function drawClosedEye(ctx, cx, cy, R, size) {
 // line with the docs' "setIcon is for static images" guidance.
 //
 // Returns an object keyed by bucket ID (0..N-1, "c", "x") whose values are
-// `{ [size]: ImageData }` ready to hand to `setIcon`.
-export function buildAtlas(makeCanvas, sizes = [16, 32]) {
+// `{ [size]: ImageData }` ready to hand to `setIcon`. `theme` selects the
+// palette (DAY/NIGHT); build one atlas per theme up front and swap between them.
+export function buildAtlas(makeCanvas, sizes = [16, 32], theme = DAY) {
   const out = {};
   const poses = [];
   poses.push({ id: BUCKET_CENTER, state: { kind: "open", angle: 0, mag: 0 } });
@@ -191,7 +213,7 @@ export function buildAtlas(makeCanvas, sizes = [16, 32]) {
       const canvas = makeCanvas(size, size);
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, size, size);
-      drawEye(ctx, size, state);
+      drawEye(ctx, size, state, theme);
       out[id][size] = ctx.getImageData(0, 0, size, size);
     }
   }
@@ -209,4 +231,19 @@ export function cursorToPose(x, y, w, h) {
   const norm = Math.min(w, h) * 0.5;
   const mag = norm > 0 ? Math.min(1, Math.hypot(dx, dy) / norm) : 0;
   return { angle, mag };
+}
+
+// ---------- Night mode schedule ----------
+// Hardcoded window for the time-based night look: tired eye from 21:00 until
+// 06:00 the next morning. Edit these two constants to reschedule.
+export const NIGHT_START_HOUR = 21;
+export const NIGHT_END_HOUR = 6;
+
+// True when `hour` (0..23) falls inside the night window [startHour, endHour).
+// The window may wrap past midnight (e.g. 17 -> 6 covers evening + early morning).
+// A zero-length window (start === end) means "never night".
+export function isNightTime(hour, startHour, endHour) {
+  if (startHour === endHour) return false;
+  if (startHour < endHour) return hour >= startHour && hour < endHour;
+  return hour >= startHour || hour < endHour; // wraps midnight
 }
