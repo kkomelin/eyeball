@@ -1,5 +1,7 @@
 # Eyeball - a curious eye in your toolbar
 
+[![Test](https://github.com/kkomelin/eyeball/actions/workflows/test.yml/badge.svg)](https://github.com/kkomelin/eyeball/actions/workflows/test.yml)
+
 [![Eyeball watching from the Chrome toolbar](store-assets/screenshot-640x400.png)](https://chromewebstore.google.com/detail/eyeball-a-curious-eye-in/hepaijoaliamcipeoajfgdiajfaammei)
 
 A tiny Chrome extension (Manifest V3) that puts a **single eye** in your
