@@ -157,22 +157,42 @@ function scheduleSpontaneousBlink() {
 
 // ---------- Active tab tracking ----------
 // Unsupported pages (PDFs, chrome://, Web Store) can't run a content script,
-// so we detect "active tab is unsupported" as "the currently active tab has
-// no connected eyeball port". When that happens the eye centers - the same
-// behavior as before this change.
+// so the eye centers on them. We used to infer "unsupported" from "the active
+// tab has no connected eyeball port", but port presence is unreliable across
+// service-worker restarts (portsByTab is wiped when the SW idles out) - which
+// caused supported tabs to be misread as unsupported and centered on cold start.
+// Instead we measure support directly from the active tab's URL.
 let activeTabId = null;
 const portsByTab = new Map(); // tabId -> Port
 
+// A page is unsupported when a content script can't run and stream gaze there.
+// Approximate from the URL: ordinary http/https pages are supported; chrome://,
+// file://, data:, the new-tab page, the PDF viewer, and the Chrome Web Store
+// (https but content-script-blocked) are not. A missing URL (no host permission,
+// e.g. chrome:// tabs) also counts as unsupported, which is what we want.
+function isUnsupportedUrl(url) {
+  if (!url) return true;
+  if (!/^https?:\/\//i.test(url)) return true;
+  if (/^https:\/\/(chromewebstore\.google\.com|chrome\.google\.com\/webstore)\b/i.test(url)) return true;
+  return false;
+}
+
 let centerCheckTimer = null;
 function scheduleCenterCheck(delayMs = 200) {
-  // Brief grace period: switching to a previously-visited supported tab is
-  // instant (its port already exists), but a freshly-opened tab needs ~tens
-  // of ms for its content script to connect. Wait, then re-check.
+  // Small debounce so rapid tab switches don't each fire a tabs.get; then read
+  // the active tab's URL and center only if it's genuinely unsupported.
   if (centerCheckTimer) clearTimeout(centerCheckTimer);
-  centerCheckTimer = setTimeout(() => {
+  centerCheckTimer = setTimeout(async () => {
     centerCheckTimer = null;
-    if (activeTabId == null) return;
-    if (!portsByTab.has(activeTabId)) setOpenPose(BUCKET_CENTER);
+    const tabId = activeTabId;
+    if (tabId == null) return;
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      // The active tab may have changed while we awaited; re-check before acting.
+      if (activeTabId === tabId && isUnsupportedUrl(tab.url)) setOpenPose(BUCKET_CENTER);
+    } catch {
+      // Tab closed between scheduling and the check; ignore.
+    }
   }, delayMs);
 }
 
@@ -183,6 +203,10 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "eyeball") return;
   const tabId = port.sender?.tab?.id ?? null;
   if (tabId != null) portsByTab.set(tabId, port);
+  // Ack the connection. The content script uses any inbound message to confirm
+  // the port is live and reset its staleness timer, so it never sits on a dead
+  // port silently dropping gaze (the freeze-after-idle bug).
+  try { port.postMessage({ type: "hello" }); } catch { /* tab already gone */ }
 
   port.onMessage.addListener((msg) => {
     if (!msg || typeof msg !== "object") return;
@@ -196,8 +220,11 @@ chrome.runtime.onConnect.addListener((port) => {
         // upward angle to its downward mirror as a defensive backstop.
         if (Math.sin(angle) < 0) angle = -angle;
         const bucket = angleToBucket(angle, mag);
-        // Gaze proves the window is active; recover from a stale sleeping.
-        if (mode === "sleeping") mode = "open";
+        // Gaze proves the window is active and the eye should be tracking, so
+        // recover from any stale non-open mode: a leftover 'sleeping', or a
+        // 'blinking' whose 140ms reopen timer was lost to an SW shutdown (which
+        // would otherwise keep the eye shut and ignore every gaze).
+        if (mode !== "open") mode = "open";
         setOpenPose(bucket);
         // Keep the calm spontaneous-blink rhythm going while tracking.
         lastGazeAt = Date.now();
@@ -268,17 +295,18 @@ chrome.tabs.query({ active: true, lastFocusedWindow: true }).then((tabs) => {
 // Idle heartbeat: a soft blink ~once a minute so the icon still feels alive
 // when nobody is interacting (the fast spontaneous-blink loop above only runs
 // while tracking). 1 minute is the alarms API minimum, which is exactly what
-// we want here - rare wake-ups, negligible cost. The Chrome Action toolbar
-// icon persists across service-worker restarts, so we run init at MODULE LEVEL
-// (not gated on onInstalled/onStartup) - this guarantees that an SW which died
-// with the icon in BUCKET_CLOSED comes back open on its next wake instead of
-// staying stuck closed.
+// we want here - rare wake-ups, negligible cost. We run init at MODULE LEVEL
+// (not gated on onInstalled/onStartup) so every SW wake re-arms the alarm.
 const BLINK_ALARM = "eyeball-blink";
 
-// Paint the first frame in the palette the clock implies, so a fresh wake never
-// flashes the wrong theme.
+// Pick the palette the clock implies so a fresh wake never flashes the wrong
+// theme. We do NOT force-center here: the toolbar icon persists across SW
+// restarts, so forcing center on every cold start would yank a supported tab's
+// eye to neutral each time the SW idled out and woke. Instead the active-tab
+// probe (above) centers only when the tab is actually unsupported, and a stale
+// CLOSED frame (SW died mid-blink/sleep) is reopened by the next gaze or by the
+// blink alarm below - both now recover a stranded mode.
 theme = scheduledTheme();
-setBucket(BUCKET_CENTER, { force: true });
 
 chrome.alarms.create(BLINK_ALARM, { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -286,6 +314,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   // The 1-minute heartbeat is also our day/night crossing check: re-evaluate
   // the schedule, then do the idle blink.
   evaluateTheme();
+  // A real blink lasts 140ms; if we still see 'blinking' a minute later, its
+  // reopen timer was lost to an SW shutdown - recover so the eye doesn't stay
+  // shut (blinkOnce is a no-op unless mode is 'open').
+  if (mode === "blinking") mode = "open";
   blinkOnce();
 });
 
