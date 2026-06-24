@@ -240,6 +240,11 @@ chrome.runtime.onConnect.addListener((port) => {
   });
 
   port.onDisconnect.addListener(() => {
+    // A bfcache eviction (Chrome 123+) disconnects the port with an error set on
+    // chrome.runtime.lastError; read it so it isn't logged as "Unchecked
+    // runtime.lastError: ...back/forward cache...". The content script reconnects
+    // on restore (its pageshow handler) or on the next gaze event.
+    void chrome.runtime.lastError;
     if (tabId != null && portsByTab.get(tabId) === port) {
       portsByTab.delete(tabId);
       // If the active tab just lost its content script (navigation to an
