@@ -25,16 +25,52 @@
   const EYE_ABOVE_FRAC = 0.25; // eye height above the viewport top, as a fraction of viewport height. Smaller = turns more sharply to follow; larger = calmer, flatter gaze.
   const EYE_X_FRAC = 1.0;      // eye horizontal position as a fraction of width; 1 = right edge, where Chrome's toolbar icons live. Lower it if your icon is pinned further left.
 
+  // A long-lived Port carries gaze/focus events to the service worker. The MV3
+  // catch: the SW idles out after ~30s of quiet, which kills this port - and the
+  // content-side `onDisconnect` is not guaranteed to fire, so we can end up
+  // holding a *dead* port whose `postMessage` neither throws nor delivers. That is
+  // the "eye freezes and never recovers" bug: gaze is dropped silently forever.
+  //
+  // Guard against it two ways: rebuild a port that has been quiet long enough that
+  // the SW may have idled out underneath it, and tear the port down on any send
+  // failure. We deliberately do NOT ping on a timer - that would pin the SW alive
+  // against its idle-out design. Reconnecting lazily on the next real event (a
+  // mouse move, a focus change) is enough to recover, and a fresh connect wakes
+  // the SW anyway.
   let port = null;
-  function ensurePort() {
-    if (port) return port;
+  let lastContactAt = 0; // last time we sent or received anything on `port`
+  const PORT_STALE_MS = 20000; // treat as stale past this; SW idles out around 30s
+
+  function teardownPort() {
+    if (port) {
+      try { port.disconnect(); } catch { /* already gone */ }
+    }
+    port = null;
+  }
+
+  function connectPort() {
     try {
       port = chrome.runtime.connect({ name: "eyeball" });
-      port.onDisconnect.addListener(() => {
-        port = null;
-      });
+      lastContactAt = Date.now();
+      // Any inbound message (the SW's "hello" ack) proves the port is live and
+      // refreshes the staleness clock.
+      port.onMessage.addListener(() => { lastContactAt = Date.now(); });
+      port.onDisconnect.addListener(() => { port = null; });
     } catch {
+      // chrome.runtime is gone - an orphaned content script after an extension
+      // reload/update. Nothing to reconnect to; a tab reload re-injects us fresh.
       port = null;
+    }
+    return port;
+  }
+
+  function ensurePort() {
+    // Rebuild when we have no port, or when the current one has gone quiet long
+    // enough that the SW may have died underneath it. The rebuild is cheap and
+    // idempotent, so erring toward reconnecting is safe.
+    if (!port || Date.now() - lastContactAt > PORT_STALE_MS) {
+      teardownPort();
+      return connectPort();
     }
     return port;
   }
@@ -44,8 +80,10 @@
     if (!p) return;
     try {
       p.postMessage(msg);
+      lastContactAt = Date.now();
     } catch {
-      port = null;
+      // The port was dead after all - drop it so the next event reconnects.
+      teardownPort();
     }
   }
 
