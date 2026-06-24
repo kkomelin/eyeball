@@ -55,7 +55,10 @@
       // Any inbound message (the SW's "hello" ack) proves the port is live and
       // refreshes the staleness clock.
       port.onMessage.addListener(() => { lastContactAt = Date.now(); });
-      port.onDisconnect.addListener(() => { port = null; });
+      // Read chrome.runtime.lastError so a bfcache-induced channel close
+      // (Chrome 123+ severs open ports when the page is cached) isn't logged as
+      // an "Unchecked runtime.lastError". See the back/forward cache section below.
+      port.onDisconnect.addListener(() => { void chrome.runtime.lastError; port = null; });
     } catch {
       // chrome.runtime is gone - an orphaned content script after an extension
       // reload/update. Nothing to reconnect to; a tab reload re-injects us fresh.
@@ -135,6 +138,28 @@
   document.addEventListener(
     "visibilitychange",
     () => send({ type: document.hidden ? "hidden" : "visible" }),
+    { passive: true },
+  );
+
+  // ---------- Back/forward cache ----------
+  // Chrome 123+ closes an open extension Port when the page is frozen into the
+  // bfcache, and logs "Unchecked runtime.lastError: The page keeping the
+  // extension port is moved into back/forward cache..." against the surviving
+  // end (the service worker). Get ahead of it: drop the Port as the page is
+  // hidden so Chrome severs nothing, and re-establish it when the page is
+  // restored from the cache so gaze resumes without waiting for the first
+  // mousemove. This mirrors the lazy-reconnect design - it just makes the
+  // bfcache round-trip explicit instead of relying on the next event.
+  window.addEventListener("pagehide", () => teardownPort(), { passive: true });
+  window.addEventListener(
+    "pageshow",
+    (e) => {
+      if (!e.persisted) return; // a fresh load reconnects lazily on the first event
+      teardownPort();           // defensive: ensure no stale port survives the round-trip
+      connectPort();
+      // Resync the SW's focus/visibility view for the just-restored page.
+      send({ type: document.hidden ? "hidden" : "visible" });
+    },
     { passive: true },
   );
 })();
