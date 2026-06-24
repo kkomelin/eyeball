@@ -14,16 +14,26 @@
   const THROTTLE_MS = 33; // ~30 Hz - feels responsive; the SW caps setIcon further.
 
   // Virtual eye position: where the toolbar icon physically sits - up in the
-  // browser chrome at the TOP-RIGHT, above and to the right of the page. We
-  // anchor the virtual eye a little above the top edge (EYE_ABOVE_FRAC) and
-  // near the right edge (EYE_X_FRAC). Because every cursor on the page is then
-  // below-and-to-the-left of the eye, the gaze always points down / down-left
-  // TOWARD the cursor - the eye fixates it like a human eye doing smooth
-  // pursuit. As the cursor approaches the icon (top-right) the eye keeps
-  // looking right at it, converging toward straight-down, instead of looking
-  // up/away or veering off to the side.
-  const EYE_ABOVE_FRAC = 0.25; // eye height above the viewport top, as a fraction of viewport height. Smaller = turns more sharply to follow; larger = calmer, flatter gaze.
-  const EYE_X_FRAC = 1.0;      // eye horizontal position as a fraction of width; 1 = right edge, where Chrome's toolbar icons live. Lower it if your icon is pinned further left.
+  // browser chrome at the TOP-RIGHT, a little above the page. We anchor the
+  // virtual eye a bit above the top edge (EYE_ABOVE_FRAC) and at the icon's
+  // horizontal column (EYE_X_FRAC). The gaze vector runs from this anchor to
+  // the cursor, so the eye fixates the cursor like a human eye in smooth
+  // pursuit - and stays locked on as the cursor moves in close, the way both
+  // our eyes converge on an object approaching the face. Because the anchor
+  // sits ABOVE the page the cursor is always below it, so the eye only ever
+  // looks DOWNward - but it leans down-LEFT or down-RIGHT depending on which
+  // side of the icon's column the cursor is on. Cursor left of the column ->
+  // look left; right of it -> look right; straight below -> look straight down.
+  //
+  // EYE_ABOVE_FRAC is kept small on purpose - roughly where the real toolbar
+  // floats above the page. If it's too large the virtual eye sits far above the
+  // real icon, so as the cursor climbs toward the top the gaze keeps sliding
+  // straight down instead of staying ON the cursor (it "drops" off the target
+  // just as the cursor gets close). Small keeps the eye pointing right at the
+  // cursor up to the top edge, and turning sharply there - the way your eye
+  // swings to stay locked on something moving in close.
+  const EYE_ABOVE_FRAC = 0.08; // eye height above the viewport top, as a fraction of viewport height (about the real toolbar offset). Larger = calmer but drifts downward off the cursor up close; smaller = sharper, truer tracking but twitchy along the very top.
+  const EYE_X_FRAC = 0.85;     // eye's horizontal column as a fraction of width, where the toolbar icon roughly sits. Cursors right of it make the eye look right; left of it, left. Nudge toward 1.0 if your icon is pinned hard against the right edge, lower if it sits further left.
 
   // A long-lived Port carries gaze/focus events to the service worker. The MV3
   // catch: the SW idles out after ~30s of quiet, which kills this port - and the
@@ -101,16 +111,18 @@
     const h = window.innerHeight;
     if (w <= 0 || h <= 0) return;
     const eyeAbove = h * EYE_ABOVE_FRAC;
-    const dx = x - w * EYE_X_FRAC; // eye is near the right edge, so cursors are to its left (dx <= 0) or straight below
+    // Signed horizontal offset: cursor left of the icon's column -> dx < 0 (eye
+    // looks left), right of it -> dx > 0 (eye looks right), under it -> dx == 0.
+    const dx = x - w * EYE_X_FRAC;
     const dy = y + eyeAbove;       // eye sits above the top edge, so dy > 0 for any in-page cursor -> always looks down
-    const angle = Math.atan2(dy, dx);
+    const angle = Math.atan2(dy, dx); // down-left .. straight-down .. down-right
     // The eye stays locked on the cursor: full fixation, never drifting back
     // to the neutral/centered pose while the cursor is on the page. (mag is
     // effectively binary at icon size - any value above the centering
     // threshold renders the pupil fully toward the cursor - so we send 1 to
-    // guarantee the eye keeps following everywhere, including near the top.
-    // It only re-centers on tabs with no content script, which the service
-    // worker handles separately.)
+    // guarantee the eye keeps following everywhere, on either side and near
+    // the top. It only re-centers on tabs with no content script, which the
+    // service worker handles separately.)
     const mag = 1;
     lastSent = Date.now();
     send({ type: "gaze", angle, mag });

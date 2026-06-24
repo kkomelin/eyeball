@@ -220,10 +220,12 @@ export function buildAtlas(makeCanvas, sizes = [16, 32], theme = DAY) {
   return out;
 }
 
-// ---------- Cursor -> pose ----------
+// ---------- Cursor -> pose (centered reference) ----------
 // Convert a cursor position within a viewport (or any rectangular region) to
-// an (angle, mag) pose. The reference point is the region's center, and mag
-// is normalized so a corner gives mag = 1 (clamped).
+// an (angle, mag) pose, measured from the region's CENTER. mag is normalized so
+// a corner gives mag = 1 (clamped). Handy as a generic "look toward the cursor"
+// mapping; the live toolbar uses gazeToward() below instead, which anchors the
+// eye where the icon actually sits.
 export function cursorToPose(x, y, w, h) {
   const dx = x - w / 2;
   const dy = y - h / 2;
@@ -231,6 +233,37 @@ export function cursorToPose(x, y, w, h) {
   const norm = Math.min(w, h) * 0.5;
   const mag = norm > 0 ? Math.min(1, Math.hypot(dx, dy) / norm) : 0;
   return { angle, mag };
+}
+
+// ---------- Cursor -> gaze (toolbar-eye geometry) ----------
+// The live eye is the toolbar ICON, sitting in the browser chrome above the
+// TOP-RIGHT of the page - not at the page's center. This maps a cursor at
+// (x, y) in a w x h viewport to the (angle, mag) gaze of an eye anchored at
+// that off-screen spot, so the pupil fixates the cursor wherever it roams:
+// down-left, straight-down, or down-RIGHT. Like a human eye, it keeps the
+// target on the fovea (smooth pursuit) and stays converged on it as it nears,
+// rather than ever losing it or looking away.
+//
+//   eyeXFrac     - the eye's horizontal column as a fraction of width (where
+//                  the icon sits). Cursors right of it read dx > 0 -> look right.
+//   eyeAboveFrac - how far above the top edge the eye floats, as a fraction of
+//                  height. Keeps dy > 0 for every in-page cursor, so the gaze is
+//                  always downward (the eye never looks up, away from the page).
+//                  Keep it small - about the real toolbar's offset above the
+//                  page. Too large parks the virtual eye far above the real
+//                  icon, so as the cursor climbs toward the top the gaze slides
+//                  straight down instead of staying ON the cursor.
+//
+// mag is pinned to full fixation (1): at icon size pupil travel is effectively
+// binary, and we want the eye locked on the cursor everywhere, never drifting
+// back to neutral while the cursor is live.
+//
+// This is the reference implementation. content.js inlines the identical math
+// (MV3 content scripts can't import this module) - keep the two in sync.
+export function gazeToward(x, y, w, h, eyeXFrac = 0.85, eyeAboveFrac = 0.08) {
+  const dx = x - w * eyeXFrac;     // < 0 left of the icon, > 0 right of it
+  const dy = y + h * eyeAboveFrac; // > 0 for any in-page cursor -> always downward
+  return { angle: Math.atan2(dy, dx), mag: 1 };
 }
 
 // ---------- Night mode schedule ----------
