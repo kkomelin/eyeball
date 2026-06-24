@@ -5,7 +5,11 @@ All notable changes to Eyeball are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.1] - 2026-06-24
+## [Unreleased]
+
+### Changed
+
+- The eye tracks your cursor more faithfully. It now follows the cursor to the right of the toolbar icon, not just to the left and down. And as the cursor moves up close to the icon, the eye keeps pointing right at it instead of drifting downward off the target - the way your eyes stay locked on something approaching them.
 
 ### Fixed
 
@@ -23,6 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of Eyeball - a curious eye in your toolbar that follows your cursor, centers on pages it can't read, and sometimes blinks. No network, no tracking.
 
-[0.2.1]: https://github.com/kkomelin/eyeball/compare/v0.2.0...v0.2.1
+[Unreleased]: https://github.com/kkomelin/eyeball/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/kkomelin/eyeball/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kkomelin/eyeball/releases/tag/v0.1.0

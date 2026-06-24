@@ -8,6 +8,7 @@ import {
   angleToBucket,
   bucketToAngle,
   cursorToPose,
+  gazeToward,
   irisCenter,
   GEOM,
   isNightTime,
@@ -54,6 +55,46 @@ test("cursorToPose returns angle pointing toward the cursor", () => {
 test("cursorToPose clamps magnitude to <= 1", () => {
   const { mag } = cursorToPose(99999, 99999, 1000, 600);
   assert.equal(mag, 1);
+});
+
+// gazeToward: the toolbar-eye geometry. The eye is anchored above the
+// top-right, so it always looks DOWN, leaning left/right toward the cursor.
+// Canvas convention: cos(angle) > 0 means the pupil moves right, sin(angle) > 0
+// means it moves down.
+test("gazeToward looks RIGHT when the cursor is right of the icon column", () => {
+  // w=1000, eyeXFrac=0.85 -> column at x=850. Cursor well to its right.
+  const { angle, mag } = gazeToward(950, 100, 1000, 600);
+  assert.ok(Math.cos(angle) > 0, `expected rightward pupil, cos=${Math.cos(angle)}`);
+  assert.ok(Math.sin(angle) > 0, "expected downward pupil");
+  assert.equal(mag, 1);
+});
+
+test("gazeToward looks LEFT when the cursor is left of the icon column", () => {
+  const { angle } = gazeToward(100, 100, 1000, 600);
+  assert.ok(Math.cos(angle) < 0, `expected leftward pupil, cos=${Math.cos(angle)}`);
+  assert.ok(Math.sin(angle) > 0, "expected downward pupil");
+});
+
+test("gazeToward looks straight DOWN when the cursor is under the icon column", () => {
+  const { angle } = gazeToward(850, 300, 1000, 600); // x exactly at 0.85*w
+  assert.ok(Math.abs(Math.cos(angle)) < 1e-9, `expected no horizontal lean, cos=${Math.cos(angle)}`);
+  assert.ok(Math.sin(angle) > 0, "expected downward pupil");
+});
+
+test("gazeToward never looks up: every in-page cursor yields a downward gaze", () => {
+  const w = 1280, h = 800;
+  for (let gx = 0; gx <= 10; gx++) {
+    for (let gy = 0; gy <= 10; gy++) {
+      const { angle } = gazeToward((gx / 10) * w, (gy / 10) * h, w, h);
+      assert.ok(Math.sin(angle) > 0, `cursor (${gx},${gy}) gazed upward: sin=${Math.sin(angle)}`);
+    }
+  }
+});
+
+test("gazeToward stays at full fixation (mag = 1) everywhere", () => {
+  assert.equal(gazeToward(0, 0, 1000, 600).mag, 1);
+  assert.equal(gazeToward(1000, 600, 1000, 600).mag, 1);
+  assert.equal(gazeToward(500, 300, 1000, 600).mag, 1);
 });
 
 test("irisCenter stays inside the disc", () => {
